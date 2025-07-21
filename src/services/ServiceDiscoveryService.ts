@@ -207,6 +207,7 @@ export class ServiceDiscoveryService {
 // Factory function para crear el servicio
 export function createServiceDiscovery(config?: Partial<ServiceDiscoveryConfig>): ServiceDiscoveryService {
   const defaultConfig: ServiceDiscoveryConfig = {
+    enabled: true,
     registryType: 'memory',
     healthCheckInterval: 30000, // 30 segundos
     heartbeatTimeout: 60000,    // 1 minuto

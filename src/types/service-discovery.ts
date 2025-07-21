@@ -14,6 +14,7 @@ export interface ServiceInstance {
 }
 
 export interface ServiceDiscoveryConfig {
+  enabled: boolean;
   registryType: 'memory' | 'consul' | 'etcd' | 'redis';
   healthCheckInterval: number;
   heartbeatTimeout: number;

@@ -1,5 +1,6 @@
 import express, { Express } from 'express';
 import cors from 'cors';
+import { createServer, Server } from 'http';
 import config from '../config';
 import { ProxyService } from './ProxyService';
 import { createRoutes } from '../routes';
@@ -9,16 +10,21 @@ import {
   notFoundHandler, 
   corsHeaders 
 } from '../middleware';
+import { createGraphQLMiddleware, createGraphQLPlaygroundMiddleware } from '../middleware/graphqlMiddleware';
 import { Logger } from '../utils/logger';
 import { ServiceDiscoveryService, createServiceDiscovery } from './ServiceDiscoveryService';
+import { GraphQLService } from '../graphql/GraphQLService';
 
 export class ApiGateway {
   private app: Express;
+  private server?: Server;
   private proxyService: ProxyService;
   private serviceDiscovery?: ServiceDiscoveryService;
+  private graphQLService?: GraphQLService;
 
   constructor() {
     this.app = express();
+    this.server = createServer(this.app);
     
     // Inicializar Service Discovery si está habilitado
     if (config.serviceDiscovery.enabled) {
@@ -30,6 +36,10 @@ export class ApiGateway {
     }
     
     this.proxyService = new ProxyService(this.serviceDiscovery);
+    
+    // Inicializar GraphQL Service
+    this.graphQLService = new GraphQLService(this.serviceDiscovery, this.proxyService);
+    
     this.setupMiddleware();
     this.setupRoutes();
     this.setupErrorHandling();
@@ -76,6 +86,19 @@ export class ApiGateway {
   private setupRoutes(): void {
     // Setup all routes including proxy routes
     this.app.use('/', createRoutes(this.proxyService, this.serviceDiscovery));
+    
+    // Setup GraphQL endpoints
+    if (this.graphQLService) {
+      // GraphQL Playground (solo en desarrollo)
+      if (process.env.NODE_ENV !== 'production') {
+        this.app.get('/playground', createGraphQLPlaygroundMiddleware());
+        Logger.info('GraphQL Playground available at /playground');
+      }
+      
+      // GraphQL API endpoint
+      this.app.post('/graphql', createGraphQLMiddleware(this.graphQLService));
+      Logger.success('GraphQL endpoint configured at /graphql');
+    }
   }
 
   private setupErrorHandling(): void {
@@ -119,66 +142,90 @@ export class ApiGateway {
     }
   }
 
-  public start(): void {
-    const server = this.app.listen(config.port, () => {
-      Logger.success(`🚀 API Gateway is running!`, {
-        port: config.port,
-        environment: config.env,
-        servicesEnabled: config.services.filter((s: any) => s.enabled).length,
-        healthCheckEnabled: config.healthCheck.enabled
-      });
-
-      Logger.info('📋 Configured services:', {
-        services: config.services.map((s: any) => ({
-          name: s.name,
-          route: s.route,
-          target: s.target,
-          enabled: s.enabled
-        }))
-      });
-
-      Logger.info('🔗 Available endpoints:', {
-        health: `http://localhost:${config.port}/api-gateway/health`,
-        info: `http://localhost:${config.port}/api-gateway/info`,
-        metrics: `http://localhost:${config.port}/api-gateway/metrics`
-      });
-    });
-
-    // Graceful shutdown
-    const gracefulShutdown = (signal: string) => {
-      Logger.info(`Received ${signal}. Starting graceful shutdown...`);
-      
-      // Detener Service Discovery
-      if (this.serviceDiscovery) {
-        this.serviceDiscovery.stop();
-        Logger.info('Service Discovery stopped.');
+  public async start(): Promise<void> {
+    try {
+      // Inicializar GraphQL Server primero
+      if (this.graphQLService && this.server) {
+        await this.graphQLService.initialize(this.server);
+        Logger.success('GraphQL Server initialized');
       }
-      
-      server.close(() => {
-        Logger.info('HTTP server closed.');
-        process.exit(0);
+
+      // Iniciar el servidor HTTP
+      this.server!.listen(config.port, () => {
+        Logger.success(`🚀 API Gateway is running!`, {
+          port: config.port,
+          environment: config.env,
+          servicesEnabled: config.services.filter((s: any) => s.enabled).length,
+          healthCheckEnabled: config.healthCheck.enabled,
+          graphQLEnabled: !!this.graphQLService
+        });
+
+        Logger.info('📋 Configured services:', {
+          services: config.services.map((s: any) => ({
+            name: s.name,
+            route: s.route,
+            target: s.target,
+            enabled: s.enabled
+          }))
+        });
+
+        Logger.info('🔗 Available endpoints:', {
+          health: `http://localhost:${config.port}/api-gateway/health`,
+          info: `http://localhost:${config.port}/api-gateway/info`,
+          metrics: `http://localhost:${config.port}/api-gateway/metrics`,
+          graphql: `http://localhost:${config.port}/graphql`,
+          ...(process.env.NODE_ENV !== 'production' && {
+            playground: `http://localhost:${config.port}/playground`
+          })
+        });
       });
 
-      // Force close after 10 seconds
-      setTimeout(() => {
-        Logger.error('Could not close connections in time, forcefully shutting down');
+      // Graceful shutdown
+      const gracefulShutdown = async (signal: string) => {
+        Logger.info(`Received ${signal}. Starting graceful shutdown...`);
+        
+        // Detener GraphQL Server
+        if (this.graphQLService) {
+          await this.graphQLService.stop();
+          Logger.info('GraphQL Server stopped.');
+        }
+        
+        // Detener Service Discovery
+        if (this.serviceDiscovery) {
+          this.serviceDiscovery.stop();
+          Logger.info('Service Discovery stopped.');
+        }
+        
+        this.server!.close(() => {
+          Logger.info('HTTP server closed.');
+          process.exit(0);
+        });
+
+        // Force close after 10 seconds
+        setTimeout(() => {
+          Logger.error('Could not close connections in time, forcefully shutting down');
+          process.exit(1);
+        }, 10000);
+      };
+
+      process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+      process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+      // Handle uncaught exceptions
+      process.on('uncaughtException', (error) => {
+        Logger.error('Uncaught Exception:', error);
         process.exit(1);
-      }, 10000);
-    };
+      });
 
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+      process.on('unhandledRejection', (reason, promise) => {
+        Logger.error('Unhandled Rejection at:', { promise, reason });
+        process.exit(1);
+      });
 
-    // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
-      Logger.error('Uncaught Exception:', error);
+    } catch (error) {
+      Logger.error('Failed to start API Gateway:', error);
       process.exit(1);
-    });
-
-    process.on('unhandledRejection', (reason, promise) => {
-      Logger.error('Unhandled Rejection at:', { promise, reason });
-      process.exit(1);
-    });
+    }
   }
 
   public getApp(): Express {

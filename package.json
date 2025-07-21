@@ -24,16 +24,26 @@
   },
   "homepage": "https://github.com/mintriago123/api_gateway_mundo_verde#readme",
   "dependencies": {
+    "@apollo/server": "^4.12.2",
+    "@graphql-tools/load-files": "^7.0.1",
+    "@graphql-tools/merge": "^9.1.0",
+    "@graphql-tools/schema": "^10.0.24",
     "@types/http-proxy": "^1.17.16",
     "@types/node-fetch": "^2.6.12",
+    "@types/uuid": "^10.0.0",
+    "body-parser": "^2.2.0",
     "concurrently": "^9.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^4.21.2",
+    "graphql": "^16.11.0",
+    "graphql-middleware": "^6.1.35",
+    "graphql-tag": "^2.12.6",
     "http-proxy": "^1.18.1",
     "node-fetch": "^3.3.2",
     "nodemon": "^3.1.10",
-    "rimraf": "^6.0.1"
+    "rimraf": "^6.0.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

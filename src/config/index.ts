@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { ServiceDiscoveryConfig } from '../types/service-discovery';
 
 dotenv.config();
 
@@ -8,15 +9,6 @@ export interface ServiceConfig {
   target: string;
   stripPath: string;
   enabled: boolean;
-}
-
-export interface ServiceDiscoveryConfig {
-  enabled: boolean;
-  registryType: 'memory' | 'consul' | 'etcd' | 'redis';
-  healthCheckInterval: number;
-  heartbeatTimeout: number;
-  cleanupInterval: number;
-  loadBalancingStrategy: 'round-robin' | 'weighted' | 'least-connections' | 'random';
 }
 
 export interface AppConfig {

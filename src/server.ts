@@ -14,10 +14,14 @@ if (missingEnvVars.length > 0) {
 }
 
 // Crear e iniciar el API Gateway
-try {
-  const gateway = new ApiGateway();
-  gateway.start();
-} catch (error) {
-  Logger.error('Failed to start API Gateway:', error);
-  process.exit(1);
+async function startGateway() {
+  try {
+    const gateway = new ApiGateway();
+    await gateway.start();
+  } catch (error) {
+    Logger.error('Failed to start API Gateway:', error);
+    process.exit(1);
+  }
 }
+
+startGateway();

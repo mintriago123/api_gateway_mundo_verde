@@ -60,9 +60,8 @@ export class ProxyService {
   private async initializeHealthChecks(): Promise<void> {
     if (!config.healthCheck.enabled) return;
 
-    Logger.info('Health checks are enabled but temporarily disabled for debugging');
-    // Temporarily disabled for debugging
-    /*
+    Logger.info('Initializing health checks for services...');
+    
     // Verificar estado inicial de los servicios
     for (const service of config.services) {
       if (service.enabled) {
@@ -78,30 +77,53 @@ export class ProxyService {
         }
       }
     }, config.healthCheck.interval);
-    */
   }
 
   private async checkServiceHealth(service: ServiceConfig): Promise<void> {
     try {
-      const response = await fetch(`${service.target}/health`, {
-        method: 'GET'
+      const healthUrl = `${service.target}/health`;
+      Logger.debug(`Checking health for ${service.name} at ${healthUrl}`);
+      
+      // Configurar timeout con AbortController
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos
+      
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'API-Gateway-Health-Check/1.0.0'
+        }
       });
 
+      clearTimeout(timeoutId);
       const isHealthy = response.ok;
       this.serviceHealthStatus.set(service.name, isHealthy);
 
-      if (!isHealthy) {
-        Logger.warn(`Service ${service.name} is unhealthy`, {
+      if (isHealthy) {
+        Logger.debug(`✅ Service ${service.name} is healthy (${response.status})`);
+      } else {
+        Logger.warn(`⚠️  Service ${service.name} is unhealthy`, {
           status: response.status,
-          target: service.target
+          statusText: response.statusText,
+          target: healthUrl
         });
       }
     } catch (error) {
       this.serviceHealthStatus.set(service.name, false);
-      Logger.error(`Health check failed for ${service.name}:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        target: service.target
-      });
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        Logger.error(`❌ Health check timeout for ${service.name}`, {
+          target: `${service.target}/health`,
+          timeout: '5s'
+        });
+      } else {
+        Logger.error(`❌ Health check failed for ${service.name}:`, {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          target: `${service.target}/health`,
+          type: error instanceof Error ? error.constructor.name : 'Unknown'
+        });
+      }
     }
   }
 
@@ -179,5 +201,14 @@ export class ProxyService {
       name: service.name,
       healthy: this.serviceHealthStatus.get(service.name) ?? false
     }));
+  }
+
+  public async refreshServiceHealth(): Promise<void> {
+    Logger.info('Manually refreshing service health checks...');
+    for (const service of config.services) {
+      if (service.enabled) {
+        await this.checkServiceHealth(service);
+      }
+    }
   }
 }

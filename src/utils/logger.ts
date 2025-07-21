@@ -6,6 +6,7 @@ export class Logger {
   private static colorize(level: string, message: string): string {
     const colors = {
       INFO: '\x1b[36m',  // Cyan
+      DEBUG: '\x1b[90m', // Gray
       WARN: '\x1b[33m',  // Yellow
       ERROR: '\x1b[31m', // Red
       SUCCESS: '\x1b[32m', // Green
@@ -14,6 +15,14 @@ export class Logger {
 
     const color = colors[level as keyof typeof colors] || colors.RESET;
     return `${color}[${level}]${colors.RESET}`;
+  }
+
+  static debug(message: string, meta?: any): void {
+    if (process.env.NODE_ENV === 'development') {
+      const timestamp = this.formatTimestamp();
+      const coloredLevel = this.colorize('DEBUG', 'DEBUG');
+      console.log(`${timestamp} ${coloredLevel} ${message}`, meta || '');
+    }
   }
 
   static info(message: string, meta?: any): void {

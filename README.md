@@ -1,11 +1,12 @@
 # API Gateway - Mundo Verde
 
-Un API Gateway moderno y escalable construido con Node.js, TypeScript y Express, con integración completa al módulo de clima de MundoVerde.
+Un API Gateway moderno y escalable construido con Node.js, TypeScript y Express, con integración completa al módulo de clima de MundoVerde y **GraphQL API** para conectividad frontend.
 
-## 🚀 Características
+## 🚀 Características Principales
 
 - **Arquitectura Modular**: Estructura organizada y mantenible
 - **Service Discovery**: Descubrimiento automático de servicios con balanceador de carga
+- **GraphQL Integration**: API GraphQL completa para conectividad de frontend 🎯
 - **Health Checks**: Monitoreo automático de servicios
 - **Logging Avanzado**: Sistema de logs con colores y timestamps
 - **CORS Configurable**: Soporte completo para CORS
@@ -14,17 +15,23 @@ Un API Gateway moderno y escalable construido con Node.js, TypeScript y Express,
 - **Configuración Centralizada**: Variables de entorno organizadas
 - **TypeScript**: Tipado fuerte para mejor desarrollo
 - **Integración Clima**: Conectado al módulo de clima de MundoVerde ✨
+- **Real-time Subscriptions**: WebSocket support para actualizaciones en tiempo real
 
 ## 📁 Estructura del Proyecto
 
 ```
 src/
 ├── config/           # Configuración centralizada
-├── middleware/       # Middlewares personalizados
-├── routes/          # Definición de rutas
+├── middleware/       # Middlewares personalizados (incluye GraphQL)
+├── routes/          # Definición de rutas REST
 ├── services/        # Servicios de la aplicación
 ├── types/           # Tipos de TypeScript
 ├── utils/           # Utilidades generales
+├── graphql/         # Schema, resolvers y servicios GraphQL
+│   ├── schemas/     # Definiciones de schema GraphQL
+│   ├── resolvers/   # Resolvers para queries/mutations
+│   ├── datasources/ # Data sources para microservicios
+│   └── types/       # Tipos específicos de GraphQL
 └── server.ts        # Punto de entrada
 ```
 
@@ -58,6 +65,13 @@ Para desarrollo:
 npm run serve
 ```
 
+## 🎯 Endpoints GraphQL
+
+- **GraphQL API**: `http://localhost:8080/graphql` - Endpoint principal de GraphQL
+- **GraphQL Playground**: `http://localhost:8080/playground` - Interface visual para testing (solo desarrollo)
+
+> 📘 **Documentación GraphQL**: Ve `GRAPHQL_GUIDE.md` para ejemplos completos de queries, mutations y subscriptions.
+
 ## 🔧 Configuración
 
 ### Variables de Entorno
@@ -83,7 +97,7 @@ El API Gateway está configurado para los siguientes servicios:
 - **Admissions Service** (`/admissions/*` → `http://localhost:5001`)
 - **Clima Service** (`/clima/*` → `http://localhost:3000`) ✨
 
-## 📋 Endpoints de Monitoreo
+## 📋 Endpoints REST de Monitoreo
 
 - `GET /api-gateway/health` - Estado de salud general
 - `GET /api-gateway/info` - Información detallada del sistema

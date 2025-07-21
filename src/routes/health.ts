@@ -12,15 +12,26 @@ export const createHealthRoutes = (proxyService: ProxyService, serviceDiscovery?
 
   try {
     // Health check endpoint
-    router.get('/health', (req: Request, res: Response) => {
+    router.get('/health', async (req: Request, res: Response) => {
       try {
+        // Refrescar health checks antes de reportar estado
+        await proxyService.refreshServiceHealth();
+        
         const serviceStatuses = proxyService.getServiceStatus();
         let discoveredServices: any[] = [];
         
         // Si hay Service Discovery, incluir también esos servicios
         if (serviceDiscovery) {
-          // Esta será una operación síncrona simplificada
-          discoveredServices = [];
+          try {
+            const allServices = await serviceDiscovery.getAllServices();
+            discoveredServices = allServices.map(service => ({
+              name: service.name,
+              healthy: service.healthy,
+              endpoint: `${service.protocol}://${service.host}:${service.port}`
+            }));
+          } catch (error) {
+            Logger.warn('Failed to get services from discovery:', error);
+          }
         }
         
         const allServicesHealthy = serviceStatuses.every(service => service.healthy);
@@ -34,7 +45,8 @@ export const createHealthRoutes = (proxyService: ProxyService, serviceDiscovery?
           services: serviceStatuses,
           serviceDiscovery: {
             enabled: !!serviceDiscovery,
-            discoveredServices: discoveredServices.length
+            discoveredServices: discoveredServices.length,
+            services: discoveredServices
           }
         };
 
