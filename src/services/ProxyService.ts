@@ -211,4 +211,38 @@ export class ProxyService {
       }
     }
   }
+
+  public createDynamicProxyMiddleware(serviceName: string, serviceUrl: string) {
+    return async (req: ProxyRequest, res: Response, next: NextFunction): Promise<void> => {
+      // Configurar información del servicio en la request
+      req.serviceName = serviceName;
+      req.proxyStartTime = Date.now();
+
+      // Modificar la URL para el servicio de destino - remover el primer segmento
+      const pathSegments = req.path.split('/').filter(segment => segment.length > 0);
+      pathSegments.shift(); // Remover el nombre del servicio
+      req.url = '/' + pathSegments.join('/');
+
+      // Si hay query parameters, agregarlos
+      if (req.query && Object.keys(req.query).length > 0) {
+        const queryString = new URLSearchParams(req.query as any).toString();
+        req.url += (req.url.includes('?') ? '&' : '?') + queryString;
+      }
+
+      Logger.info(`Proxying dynamic request to ${serviceName}`, {
+        originalUrl: req.originalUrl,
+        modifiedUrl: req.url,
+        target: serviceUrl,
+        method: req.method,
+        discoveryUsed: true
+      });
+
+      this.proxy.web(req, res, { target: serviceUrl }, (error) => {
+        if (error) {
+          Logger.error(`Dynamic proxy error for ${serviceName}:`, error);
+          next(error);
+        }
+      });
+    };
+  }
 }

@@ -32,14 +32,8 @@ const config: AppConfig = {
   env: process.env.NODE_ENV || 'development',
   corsEnabled: process.env.CORS_ENABLED === 'true' || true,
   services: [
-
-    {
-      name: 'Clima Service',
-      route: '/clima',
-      target: process.env.CLIMA_SERVICE_URL || 'http://localhost:3000',
-      stripPath: '/clima',
-      enabled: process.env.CLIMA_SERVICE_ENABLED !== 'false'
-    }
+    // Los servicios se registrarán dinámicamente a través de Service Discovery
+    // o se pueden configurar aquí estáticamente si es necesario
   ],
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutos

@@ -11,10 +11,10 @@ export const createRoutes = (proxyService: ProxyService, serviceDiscovery?: Serv
 
   try {
     // Health and monitoring routes
-    router.use('/api-gateway', createHealthRoutes(proxyService, serviceDiscovery));
+    router.use('/', createHealthRoutes(proxyService, serviceDiscovery));
 
     // Service Discovery management routes
-    router.use('/api-gateway', createServiceDiscoveryRoutes(serviceDiscovery));
+    router.use('/', createServiceDiscoveryRoutes(serviceDiscovery));
 
     // Dynamic service routes based on configuration
     config.services.forEach(service => {
