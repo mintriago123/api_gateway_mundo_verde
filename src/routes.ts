@@ -54,23 +54,35 @@ export function registerRoutes(app: Express): void {
      PLA​GA-DETECTION
      (Laravel) – login y register públicos
   ══════════════════════ */
-  app.use(
-    ['/plaga/login', '/plaga/register'],
-    createProxyMiddleware({
-      target: services['plaga-detection'].base_url,
-      changeOrigin: true,
-      pathRewrite: { '^/plaga': '' },
-    }),
-  );
-  app.use(
-    '/plaga',
-    verifyJWT,
-    createProxyMiddleware({
-      target: services['plaga-detection'].base_url,
-      changeOrigin: true,
-      pathRewrite: { '^/plaga': '' },
-    }),
-  );
+/* ─── Login y Register ─────────────────────────────── */
+app.post(
+  '/plaga/login',
+  createProxyMiddleware({
+    target: services['plaga-detection'].base_url,
+    changeOrigin: true,
+    pathRewrite: { '^/plaga/login': '/api/login' }, // 👈 convierte a /api/login
+  }),
+);
+
+app.post(
+  '/plaga/register',
+  createProxyMiddleware({
+    target: services['plaga-detection'].base_url,
+    changeOrigin: true,
+    pathRewrite: { '^/plaga/register': '/api/register' }, // /api/register
+  }),
+);
+
+/* ─── Rutas protegidas ─────────────────────────────── */
+app.use(
+  '/plaga',
+  verifyJWT,
+  createProxyMiddleware({
+    target: services['plaga-detection'].base_url,
+    changeOrigin: true,
+    pathRewrite: { '^/plaga': '' }, // /plaga/api/... → /api/...
+  }),
+);
 
   /* ════════════════════
      SENSOR-SERVICE
