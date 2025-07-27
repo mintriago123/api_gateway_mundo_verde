@@ -30,7 +30,7 @@ export const services = {
     ],
   },
   'sensor-service': {
-    base_url: 'http://localhost:7000',
+    base_url: 'http://localhost:6060',
     endpoints: [
       '/api/v1/sensores',
       '/api/v1/readings',
@@ -40,7 +40,7 @@ export const services = {
     ],
   },
   'export-module': {
-    base_url: 'http://localhost:5000',
+    base_url: 'http://localhost:5197',
     endpoints: [
       '/api/auth/login',
       '/api/evaluacion/:cultivoId',
