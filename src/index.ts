@@ -22,27 +22,61 @@ import { interceptorMiddleware, errorInterceptorMiddleware } from "./interceptor
   ╚══════════════════════════════════════════════════════════════╝
   `);
 
-  // Middlewares básicos
+  // Middlewares básicos - CORS primero
   app.use(cors());
-  app.use(bodyParser.json({ limit: '10mb' }));
-  app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
   
-  // Middleware de interceptación - DEBE ir antes que las rutas pero después de body parsers
-  // Excluimos GraphQL completamente del interceptor para evitar conflictos con Apollo
+  // Configuración especial para GraphQL - NO aplicar body-parser
+  app.use('/graphql', (req, res, next) => {
+    // Apollo Server manejará su propio parsing del body
+    next();
+  });
+  
+  // Para todas las demás rutas (REST), aplicar body-parser e interceptor
   app.use((req: any, res, next) => {
-    if (req.originalUrl.includes('/graphql')) {
-      // Para GraphQL, no interceptamos nada, dejamos que Apollo lo maneje
+    if (req.path === '/graphql' || req.originalUrl.includes('/graphql')) {
+      // Saltamos el body-parser y el interceptor para GraphQL
       next();
     } else {
-      interceptorMiddleware(req, res, next);
+      // Para rutas REST, aplicamos body parsers
+      bodyParser.json({ limit: '10mb' })(req, res, (err: any) => {
+        if (err) return next(err);
+        bodyParser.urlencoded({ extended: true, limit: '10mb' })(req, res, (err: any) => {
+          if (err) return next(err);
+          // Aplicamos el interceptor después del body-parser
+          interceptorMiddleware(req, res, next);
+        });
+      });
     }
   });
 
-  /* 1. GraphQL */
+  /* 1. GraphQL - Se monta ANTES de las rutas REST */
   await mountGraphQL(app);
 
   /* 2. Proxys REST */
   registerRoutes(app);
+
+  // Middleware específico para manejar errores de GraphQL
+  app.use('/graphql', (err: any, req: any, res: any, next: any) => {
+    console.error('❌ Error en GraphQL middleware:', {
+      url: req.originalUrl,
+      method: req.method,
+      error: err.message,
+      stack: err.stack
+    });
+    
+    if (err.message === 'stream is not readable') {
+      return res.status(400).json({
+        errors: [{
+          message: 'Error de parsing del request. Asegúrate de enviar un JSON válido.',
+          extensions: {
+            code: 'BAD_REQUEST'
+          }
+        }]
+      });
+    }
+    
+    next(err);
+  });
 
   // Ruta para obtener estadísticas de WebSocket
   app.get('/gateway/websocket/stats', (req, res) => {

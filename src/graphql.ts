@@ -725,16 +725,30 @@ export async function mountGraphQL(app: express.Application) {
       process.env.NODE_ENV === 'production' 
         ? require('apollo-server-core').ApolloServerPluginLandingPageDisabled()
         : require('apollo-server-core').ApolloServerPluginLandingPageGraphQLPlayground()
-    ]
+    ],
+    // Formatear errores para mejor debugging
+    formatError: (err) => {
+      console.error('❌ Error en GraphQL:', err);
+      return {
+        message: err.message,
+        locations: err.locations,
+        path: err.path,
+      };
+    }
   });
   
   await server.start();
 
-  /* Conecta Apollo con Express */
+  /* Conecta Apollo con Express - configuración que evita conflictos de stream */
   server.applyMiddleware({ 
     app: app as any, 
     path: '/graphql',
-    cors: true
+    cors: false, // Ya manejamos CORS globalmente
+    bodyParserConfig: {
+      limit: '10mb'
+    },
+    // Deshabilitar el propio body-parser de Apollo si causa problemas
+    disableHealthCheck: true
   });
 
   console.log(`🚀 GraphQL server ready at http://localhost:4000${server.graphqlPath}`);

@@ -9,7 +9,7 @@
   "dependencies": {
     "@types/ws": "^8.18.1",
     "apollo-server-express": "^3.13.0",
-    "body-parser": "^2.2.0",
+    "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "cross-fetch": "^4.1.0",
     "dotenv": "^17.2.1",
