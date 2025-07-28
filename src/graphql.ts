@@ -13,11 +13,20 @@ export async function mountGraphQL(app: express.Application) {
       hello: String
       # Consultas del módulo de clima
       consultaClima(token: String!, ciudad: String!): ClimaResponse
+      # Consultas del módulo de plagas
+      obtenerNotificaciones(token: String!): PlagaResponse
+      obtenerDetecciones(token: String!): PlagaResponse
     }
 
     type Mutation {
       # Autenticación del módulo de clima
       loginClima(username: String!, password: String!): AuthResponse
+      # Autenticación del módulo de plagas
+      loginPlagas(email: String!, password: String!): AuthResponse
+      registerPlagas(username: String!, password: String!, email: String!): AuthResponse
+      # Operaciones del módulo de plagas
+      realizarDeteccion(token: String!, imagenUrl: String!): PlagaResponse
+      capturarImagen(token: String!, dispositivo: String!): PlagaResponse
     }
 
     type AuthResponse {
@@ -27,6 +36,12 @@ export async function mountGraphQL(app: express.Application) {
     }
 
     type ClimaResponse {
+      success: Boolean!
+      data: String
+      message: String
+    }
+
+    type PlagaResponse {
       success: Boolean!
       data: String
       message: String
@@ -76,6 +91,78 @@ export async function mountGraphQL(app: express.Application) {
             message: `Error de conexión: ${error.message}`
           };
         }
+      },
+
+      obtenerNotificaciones: async (_: any, { token }: { token: string }) => {
+        try {
+          console.log('Obteniendo notificaciones de plagas con token:', token.substring(0, 20) + '...');
+          
+          const response = await fetch(`${services["plaga-detection"].base_url}/api/notificaciones`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Notificaciones obtenidas exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      obtenerDetecciones: async (_: any, { token }: { token: string }) => {
+        try {
+          console.log('Obteniendo detecciones de plagas con token:', token.substring(0, 20) + '...');
+          
+          const response = await fetch(`${services["plaga-detection"].base_url}/api/deteccion`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Detecciones obtenidas exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
       }
     },
 
@@ -100,12 +187,12 @@ export async function mountGraphQL(app: express.Application) {
               token = token.slice(7, -1); // Extraer solo el JWT del formato {token:...}
             }
             
-            console.log('Token limpio:', token);
+            console.log('Token limpio clima:', token);
             
             return {
               success: true,
               token,
-              message: "Login exitoso"
+              message: "Login exitoso en módulo de clima"
             };
           } else {
             return {
@@ -118,6 +205,163 @@ export async function mountGraphQL(app: express.Application) {
           return {
             success: false,
             token: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      loginPlagas: async (_: any, { email, password }: { email: string, password: string }) => {
+        try {
+          console.log('Intentando login en módulo de plagas:', email);
+          
+          const response = await fetch(`${services["plaga-detection"].base_url}/api/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'accept': '*/*'
+            },
+            body: JSON.stringify({ email, password })
+          });
+
+          if (response.ok) {
+            let token = await response.text();
+            
+            // Limpiar el token: remover comillas
+            token = token.replace(/"/g, '');
+            if (token.startsWith('{token:') && token.endsWith('}')) {
+              token = token.slice(7, -1);
+            }
+            
+            console.log('Token limpio plagas:', token);
+            
+            return {
+              success: true,
+              token,
+              message: "Login exitoso en módulo de plagas"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              token: null,
+              message: `Error de autenticación: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            token: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      registerPlagas: async (_: any, { username, password, email }: { username: string, password: string, email: string }) => {
+        try {
+          console.log('Registrando usuario en módulo de plagas:', username);
+          
+          const response = await fetch(`${services["plaga-detection"].base_url}/api/register`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'accept': 'application/json'
+            },
+            body: JSON.stringify({ username, password, email })
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              token: null,
+              message: "Usuario registrado exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              token: null,
+              message: `Error de registro: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            token: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      realizarDeteccion: async (_: any, { token, imagenUrl }: { token: string, imagenUrl: string }) => {
+        try {
+          console.log('Realizando detección de plagas con imagen:', imagenUrl);
+          
+          const response = await fetch(`${services["plaga-detection"].base_url}/api/deteccion`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ imagen_url: imagenUrl })
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Detección realizada exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error en detección: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      capturarImagen: async (_: any, { token, dispositivo }: { token: string, dispositivo: string }) => {
+        try {
+          console.log('Capturando imagen desde dispositivo:', dispositivo);
+          
+          const response = await fetch(`${services["plaga-detection"].base_url}/api/captura`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ dispositivo })
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Imagen capturada exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error en captura: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
             message: `Error de conexión: ${error.message}`
           };
         }
