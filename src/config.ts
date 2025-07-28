@@ -49,4 +49,11 @@ export const services = {
       '/api/consulta/ejecutar',
     ],
   },
+  'ia-evaluacion': {
+    base_url: 'http://localhost:3200',
+    endpoints: [
+      '/chat',
+      '/evaluar-cultivo',
+    ],
+  },
 } as const;

@@ -131,4 +131,26 @@ export function registerRoutes(app: Express): void {
       pathRewrite: { "^/export": "" },
     })
   );
+
+  /* ════════════════════
+     IA-EVALUACION
+     (FastAPI) – protegido con JWT
+  ══════════════════════ */
+  app.use(
+    "/ia",
+    // verifyJWT,
+    createProxyMiddleware({
+      target: services["ia-evaluacion"].base_url, // http://localhost:3200
+      changeOrigin: true,
+      pathRewrite: { "^/ia": "" }, // /ia/chat → /chat, /ia/evaluar-cultivo → /evaluar-cultivo
+      logLevel: "debug",
+      onProxyReq(proxyReq: ClientRequest, r: Request) {
+        console.log(`[Proxy→IA] ${r.method} ${r.originalUrl}`);
+      },
+      onError(err: Error, _req: IncomingMessage, res: ServerResponse) {
+        console.error("[Proxy-error IA]", err.message);
+        res.writeHead(502).end("Gateway error");
+      },
+    } as Options)
+  );
 }
