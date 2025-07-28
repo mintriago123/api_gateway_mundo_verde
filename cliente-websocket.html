@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cliente WebSocket - API Gateway Mundo Verde</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #4CAF50, #8BC34A);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        
+        .status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff5722;
+        }
+        
+        .status-dot.connected {
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .controls {
+            padding: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1976D2;
+        }
+        
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #388E3C;
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .input-group {
+            display: flex;
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px 0 0 6px;
+            outline: none;
+        }
+        
+        .input-group button {
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .messages {
+            height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fafafa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .message-request {
+            background: #e3f2fd;
+            border-left-color: #2196F3;
+        }
+        
+        .message-response {
+            background: #e8f5e8;
+            border-left-color: #4CAF50;
+        }
+        
+        .message-error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+        
+        .message-graphql {
+            background: #f3e5f5;
+            border-left-color: #9c27b0;
+        }
+        
+        .message-connection {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+        }
+        
+        .message-header {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .message-meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-top: 1px solid #ddd;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌱 Cliente WebSocket - API Gateway Mundo Verde</h1>
+            <p>Monitor en tiempo real de todas las operaciones del API Gateway</p>
+        </div>
+        
+        <div class="status">
+            <div class="status-item">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Desconectado</span>
+            </div>
+            <div class="status-item">
+                <span>Clientes: <strong id="clientCount">0</strong></span>
+            </div>
+            <div class="status-item">
+                <span>Mensajes: <strong id="messageCount">0</strong></span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="input-group">
+                <input type="text" id="serverUrl" placeholder="ws://localhost:4000" value="ws://localhost:4000">
+                <button class="btn btn-primary" id="connectBtn">Conectar</button>
+            </div>
+            <button class="btn btn-success" id="pingBtn" disabled>Ping</button>
+            <button class="btn btn-danger" id="clearBtn">Limpiar</button>
+            <button class="btn btn-primary" id="testBtn" disabled>Test Request</button>
+        </div>
+        
+        <div class="messages" id="messages">
+            <div class="message message-connection">
+                <div class="message-header">🚀 Cliente WebSocket Iniciado</div>
+                <div class="message-meta">Listo para recibir mensajes del API Gateway</div>
+                Conecta al servidor WebSocket para comenzar a monitorear las operaciones.
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="requestCount">0</div>
+                <div class="stat-label">Requests</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="responseCount">0</div>
+                <div class="stat-label">Responses</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="errorCount">0</div>
+                <div class="stat-label">Errores</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="graphqlCount">0</div>
+                <div class="stat-label">GraphQL</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class WebSocketClient {
+            constructor() {
+                this.socket = null;
+                this.messageCount = 0;
+                this.requestCount = 0;
+                this.responseCount = 0;
+                this.errorCount = 0;
+                this.graphqlCount = 0;
+                
+                this.initializeElements();
+                this.bindEvents();
+            }
+            
+            initializeElements() {
+                this.statusDot = document.getElementById('statusDot');
+                this.statusText = document.getElementById('statusText');
+                this.clientCount = document.getElementById('clientCount');
+                this.messageCountEl = document.getElementById('messageCount');
+                this.serverUrl = document.getElementById('serverUrl');
+                this.connectBtn = document.getElementById('connectBtn');
+                this.pingBtn = document.getElementById('pingBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.testBtn = document.getElementById('testBtn');
+                this.messages = document.getElementById('messages');
+                this.requestCountEl = document.getElementById('requestCount');
+                this.responseCountEl = document.getElementById('responseCount');
+                this.errorCountEl = document.getElementById('errorCount');
+                this.graphqlCountEl = document.getElementById('graphqlCount');
+            }
+            
+            bindEvents() {
+                this.connectBtn.addEventListener('click', () => this.toggleConnection());
+                this.pingBtn.addEventListener('click', () => this.sendPing());
+                this.clearBtn.addEventListener('click', () => this.clearMessages());
+                this.testBtn.addEventListener('click', () => this.sendTestRequest());
+                
+                this.serverUrl.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.toggleConnection();
+                });
+            }
+            
+            toggleConnection() {
+                if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                    this.disconnect();
+                } else {
+                    this.connect();
+                }
+            }
+            
+            connect() {
+                const url = this.serverUrl.value.trim();
+                if (!url) {
+                    alert('Por favor ingresa una URL válida');
+                    return;
+                }
+                
+                this.addMessage('connection', '🔄 Conectando...', `Intentando conectar a ${url}`);
+                
+                try {
+                    this.socket = new WebSocket(url);
+                    
+                    this.socket.onopen = () => {
+                        this.updateStatus(true, 'Conectado');
+                        this.connectBtn.textContent = 'Desconectar';
+                        this.connectBtn.className = 'btn btn-danger';
+                        this.pingBtn.disabled = false;
+                        this.testBtn.disabled = false;
+                        this.addMessage('connection', '✅ Conectado al servidor', 'Conexión establecida exitosamente');
+                    };
+                    
+                    this.socket.onmessage = (event) => {
+                        this.handleMessage(JSON.parse(event.data));
+                    };
+                    
+                    this.socket.onclose = () => {
+                        this.updateStatus(false, 'Desconectado');
+                        this.connectBtn.textContent = 'Conectar';
+                        this.connectBtn.className = 'btn btn-primary';
+                        this.pingBtn.disabled = true;
+                        this.testBtn.disabled = true;
+                        this.addMessage('connection', '❌ Desconectado del servidor', 'La conexión se ha cerrado');
+                    };
+                    
+                    this.socket.onerror = (error) => {
+                        this.addMessage('error', '❌ Error de conexión', `Error: ${error.message || 'Error desconocido'}`);
+                    };
+                    
+                } catch (error) {
+                    this.addMessage('error', '❌ Error al conectar', `Error: ${error.message}`);
+                }
+            }
+            
+            disconnect() {
+                if (this.socket) {
+                    this.socket.close();
+                }
+            }
+            
+            sendPing() {
+                if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                    this.socket.send(JSON.stringify({
+                        type: 'ping',
+                        timestamp: new Date().toISOString()
+                    }));
+                    this.addMessage('connection', '🏓 Ping enviado', 'Enviando ping al servidor...');
+                }
+            }
+            
+            sendTestRequest() {
+                // Hacer una request HTTP de prueba al API Gateway
+                fetch('/gateway/info')
+                    .then(response => response.json())
+                    .then(data => {
+                        this.addMessage('connection', '🧪 Test Request enviado', 'Request de prueba enviado a /gateway/info');
+                    })
+                    .catch(error => {
+                        this.addMessage('error', '❌ Error en test request', `Error: ${error.message}`);
+                    });
+            }
+            
+            handleMessage(message) {
+                this.messageCount++;
+                this.messageCountEl.textContent = this.messageCount;
+                
+                switch (message.type) {
+                    case 'request':
+                        this.requestCount++;
+                        this.requestCountEl.textContent = this.requestCount;
+                        this.handleRequest(message);
+                        break;
+                        
+                    case 'response':
+                        this.responseCount++;
+                        this.responseCountEl.textContent = this.responseCount;
+                        this.handleResponse(message);
+                        break;
+                        
+                    case 'error':
+                        this.errorCount++;
+                        this.errorCountEl.textContent = this.errorCount;
+                        this.handleError(message);
+                        break;
+                        
+                    case 'graphql':
+                        this.graphqlCount++;
+                        this.graphqlCountEl.textContent = this.graphqlCount;
+                        this.handleGraphQL(message);
+                        break;
+                        
+                    case 'connection':
+                        this.handleConnection(message);
+                        break;
+                }
+            }
+            
+            handleRequest(message) {
+                const req = message.request;
+                const header = `📤 REQUEST ${req.method} ${req.url}`;
+                const meta = `ID: ${message.id} | ${req.timestamp} | IP: ${req.clientIP || 'N/A'}`;
+                
+                let content = `Método: ${req.method}
+URL: ${req.url}
+Source: ${req.sourceModule || 'Desconocido'}
+Target: ${req.targetService || 'Desconocido'}
+User-Agent: ${req.userAgent || 'N/A'}
+
+Headers:
+${JSON.stringify(req.headers, null, 2)}`;
+                
+                if (req.body) {
+                    content += `
+
+Body:
+${JSON.stringify(req.body, null, 2)}`;
+                }
+                
+                this.addMessage('request', header, meta, content);
+            }
+            
+            handleResponse(message) {
+                const res = message.response;
+                const header = `📥 RESPONSE ${res.statusCode}`;
+                const meta = `ID: ${message.id} | ${res.timestamp} | ${res.responseTime}ms | ${res.size || 0} bytes`;
+                
+                let content = `Status: ${res.statusCode}
+Response Time: ${res.responseTime}ms
+Size: ${res.size || 0} bytes
+
+Headers:
+${JSON.stringify(res.headers, null, 2)}`;
+                
+                if (res.body) {
+                    content += `
+
+Body:
+${JSON.stringify(res.body, null, 2)}`;
+                }
+                
+                this.addMessage('response', header, meta, content);
+            }
+            
+            handleError(message) {
+                const error = message.error;
+                const header = `❌ ERROR`;
+                const meta = `ID: ${message.id} | ${error.timestamp}`;
+                
+                const content = `Message: ${error.message}
+
+Stack:
+${error.stack}`;
+                
+                this.addMessage('error', header, meta, content);
+            }
+            
+            handleGraphQL(message) {
+                const data = message.data;
+                const header = `🚀 GRAPHQL ${data.operationName || 'Query'}`;
+                const meta = `ID: ${message.id} | ${data.timestamp}`;
+                
+                let content = `Operation: ${data.operationName || 'Unnamed'}
+
+Query:
+${data.query}`;
+                
+                if (data.variables) {
+                    content += `
+
+Variables:
+${JSON.stringify(data.variables, null, 2)}`;
+                }
+                
+                this.addMessage('graphql', header, meta, content);
+            }
+            
+            handleConnection(message) {
+                const data = message.data;
+                const header = `🔗 ${data.type?.toUpperCase() || 'CONNECTION'}`;
+                let meta = `ID: ${message.id}`;
+                
+                if (data.timestamp) {
+                    meta += ` | ${data.timestamp}`;
+                }
+                
+                if (data.totalClients !== undefined) {
+                    this.clientCount.textContent = data.totalClients;
+                }
+                
+                const content = data.message || JSON.stringify(data, null, 2);
+                
+                this.addMessage('connection', header, meta, content);
+            }
+            
+            addMessage(type, header, meta, content = '') {
+                const messageEl = document.createElement('div');
+                messageEl.className = `message message-${type}`;
+                
+                messageEl.innerHTML = `
+                    <div class="message-header">${header}</div>
+                    <div class="message-meta">${meta}</div>
+                    ${content}
+                `;
+                
+                this.messages.appendChild(messageEl);
+                this.messages.scrollTop = this.messages.scrollHeight;
+            }
+            
+            updateStatus(connected, text) {
+                this.statusDot.className = `status-dot ${connected ? 'connected' : ''}`;
+                this.statusText.textContent = text;
+            }
+            
+            clearMessages() {
+                this.messages.innerHTML = '';
+                this.messageCount = 0;
+                this.requestCount = 0;
+                this.responseCount = 0;
+                this.errorCount = 0;
+                this.graphqlCount = 0;
+                
+                this.messageCountEl.textContent = '0';
+                this.requestCountEl.textContent = '0';
+                this.responseCountEl.textContent = '0';
+                this.errorCountEl.textContent = '0';
+                this.graphqlCountEl.textContent = '0';
+                
+                this.addMessage('connection', '🗑️ Mensajes limpiados', 'Se han eliminado todos los mensajes');
+            }
+        }
+        
+        // Inicializar el cliente cuando se carga la página
+        document.addEventListener('DOMContentLoaded', () => {
+            new WebSocketClient();
+        });
+    </script>
+</body>
+</html>

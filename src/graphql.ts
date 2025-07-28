@@ -2,6 +2,7 @@ import express from "express";
 import { ApolloServer, gql } from "apollo-server-express";
 import fetch from "cross-fetch";
 import { services } from "./config";
+import { wsManager } from "./websocket";
 
 /**
  * Monta el endpoint /graphql sobre un Express ya existente.

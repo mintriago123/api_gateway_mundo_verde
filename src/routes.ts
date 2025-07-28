@@ -3,6 +3,7 @@ import { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import { createProxyMiddleware, Options } from "http-proxy-middleware";
 import { verifyJWT } from "./auth";
 import { services, getServiceByPath } from "./config";
+import path from "path";
 
 /**
  * Identifica el módulo de origen basándose en headers, IP, user-agent, puerto, etc.
@@ -243,6 +244,12 @@ export function registerRoutes(app: Express): void {
         baseUrl: config.base_url
       }))
     });
+  });
+
+  // Nueva ruta para servir el cliente WebSocket
+  app.get("/gateway/websocket/client", (req: Request, res: Response) => {
+    const clientPath = path.resolve(__dirname, "..", "cliente-websocket.html");
+    res.sendFile(clientPath);
   });
 
   // Nueva ruta para mostrar guía de identificación de módulos origen
