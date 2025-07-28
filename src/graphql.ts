@@ -12,7 +12,7 @@ export async function mountGraphQL(app: express.Application) {
     type Query {
       hello: String
       # Consultas del módulo de clima
-      consultaClima(token: String!): ClimaResponse
+      consultaClima(token: String!, ciudad: String!): ClimaResponse
     }
 
     type Mutation {
@@ -37,9 +37,11 @@ export async function mountGraphQL(app: express.Application) {
     Query: {
       hello: () => "Hola Mundo!",
       
-      consultaClima: async (_: any, { token }: { token: string }) => {
+      consultaClima: async (_: any, { token, ciudad }: { token: string, ciudad: string }) => {
         try {
-          const response = await fetch(`${services["clima-service"].base_url}/api/consulta-clima`, {
+          console.log(`Consultando clima para ${ciudad} con token:`, token.substring(0, 20) + '...');
+          
+          const response = await fetch(`${services["clima-service"].base_url}/api/consulta-clima?ciudad=${encodeURIComponent(ciudad)}`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -47,21 +49,27 @@ export async function mountGraphQL(app: express.Application) {
             }
           });
 
+          console.log('Respuesta del clima-service:', response.status, response.statusText);
+
           if (response.ok) {
             const data = await response.text();
+            console.log('Datos del clima recibidos:', data);
             return {
               success: true,
               data,
               message: "Consulta exitosa"
             };
           } else {
+            const errorText = await response.text();
+            console.log('Error del clima-service:', errorText);
             return {
               success: false,
               data: null,
-              message: `Error: ${response.status} ${response.statusText}`
+              message: `Error: ${response.status} ${response.statusText} - ${errorText}`
             };
           }
         } catch (error: any) {
+          console.error('Error de conexión con clima-service:', error);
           return {
             success: false,
             data: null,
@@ -84,10 +92,19 @@ export async function mountGraphQL(app: express.Application) {
           });
 
           if (response.ok) {
-            const token = await response.text();
+            let token = await response.text();
+            
+            // Limpiar el token: remover comillas y formato {token:...}
+            token = token.replace(/"/g, ''); // Remover comillas
+            if (token.startsWith('{token:') && token.endsWith('}')) {
+              token = token.slice(7, -1); // Extraer solo el JWT del formato {token:...}
+            }
+            
+            console.log('Token limpio:', token);
+            
             return {
               success: true,
-              token: token.replace(/"/g, ''), // Remover comillas si las hay
+              token,
               message: "Login exitoso"
             };
           } else {
