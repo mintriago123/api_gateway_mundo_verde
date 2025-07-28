@@ -16,6 +16,12 @@ export async function mountGraphQL(app: express.Application) {
       # Consultas del módulo de plagas
       obtenerNotificaciones(token: String!): PlagaResponse
       obtenerDetecciones(token: String!): PlagaResponse
+      # Consultas del módulo de sensores
+      obtenerSensores(token: String!): SensorResponse
+      obtenerLecturas(token: String!): SensorResponse
+      obtenerUbicaciones(token: String!): SensorResponse
+      obtenerAnomalias(token: String!): SensorResponse
+      obtenerPredicciones(token: String!): SensorResponse
     }
 
     type Mutation {
@@ -24,9 +30,14 @@ export async function mountGraphQL(app: express.Application) {
       # Autenticación del módulo de plagas
       loginPlagas(email: String!, password: String!): AuthResponse
       registerPlagas(name: String!, email: String!, cedula: String!, password: String!, password_confirmation: String!): AuthResponse
+      # Autenticación del módulo de sensores
+      loginSensores(username: String!, password: String!): AuthResponse
       # Operaciones del módulo de plagas
       realizarDeteccion(token: String!, imagenUrl: String!): PlagaResponse
       capturarImagen(token: String!, dispositivo: String!): PlagaResponse
+      # Operaciones del módulo de sensores
+      crearLectura(token: String!, sensor_id: Int!, humedad: Float!, temperatura: Float!): SensorResponse
+      crearSensor(token: String!, nombre: String!, tipo: String!, ubicacion_id: Int!): SensorResponse
     }
 
     type AuthResponse {
@@ -42,6 +53,12 @@ export async function mountGraphQL(app: express.Application) {
     }
 
     type PlagaResponse {
+      success: Boolean!
+      data: String
+      message: String
+    }
+
+    type SensorResponse {
       success: Boolean!
       data: String
       message: String
@@ -147,6 +164,187 @@ export async function mountGraphQL(app: express.Application) {
               success: true,
               data,
               message: "Detecciones obtenidas exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      // Resolvers del módulo de sensores
+      obtenerSensores: async (_: any, { token }: { token: string }) => {
+        try {
+          console.log('Obteniendo sensores con token:', token.substring(0, 20) + '...');
+          
+          const response = await fetch(`${services["sensor-service"].base_url}/api/v1/sensores`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Sensores obtenidos exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      obtenerLecturas: async (_: any, { token }: { token: string }) => {
+        try {
+          console.log('Obteniendo lecturas de sensores con token:', token.substring(0, 20) + '...');
+          
+          const response = await fetch(`${services["sensor-service"].base_url}/api/v1/readings`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Lecturas obtenidas exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      obtenerUbicaciones: async (_: any, { token }: { token: string }) => {
+        try {
+          console.log('Obteniendo ubicaciones con token:', token.substring(0, 20) + '...');
+          
+          const response = await fetch(`${services["sensor-service"].base_url}/api/v1/ubicaciones`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Ubicaciones obtenidas exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      obtenerAnomalias: async (_: any, { token }: { token: string }) => {
+        try {
+          console.log('Obteniendo anomalías con token:', token.substring(0, 20) + '...');
+          
+          const response = await fetch(`${services["sensor-service"].base_url}/api/v1/anomalias`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Anomalías obtenidas exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      obtenerPredicciones: async (_: any, { token }: { token: string }) => {
+        try {
+          console.log('Obteniendo predicciones con token:', token.substring(0, 20) + '...');
+          
+          const response = await fetch(`${services["sensor-service"].base_url}/api/v1/predicciones`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Predicciones obtenidas exitosamente"
             };
           } else {
             const errorText = await response.text();
@@ -299,6 +497,61 @@ export async function mountGraphQL(app: express.Application) {
         }
       },
 
+      loginSensores: async (_: any, { username, password }: { username: string, password: string }) => {
+        try {
+          console.log('Intentando login en módulo de sensores:', username);
+          
+          // Preparar los datos en formato form-urlencoded para OAuth2
+          const formData = new URLSearchParams();
+          formData.append('grant_type', 'password');
+          formData.append('username', username);
+          formData.append('password', password);
+          formData.append('scope', '');
+          formData.append('client_id', 'string');
+          formData.append('client_secret', '');
+          
+          const response = await fetch(`${services["sensor-service"].base_url}/auth/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'accept': 'application/json'
+            },
+            body: formData.toString()
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Respuesta completa del sensor-service:', data);
+            
+            // El token viene en data.access_token según OAuth2
+            const token = data.access_token || data.token;
+            
+            console.log('Token de sensores obtenido:', token);
+            
+            return {
+              success: true,
+              token,
+              message: "Login exitoso en módulo de sensores"
+            };
+          } else {
+            const errorText = await response.text();
+            console.log('Error del sensor-service:', errorText);
+            return {
+              success: false,
+              token: null,
+              message: `Error de autenticación: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          console.error('Error de conexión con sensor-service:', error);
+          return {
+            success: false,
+            token: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
       realizarDeteccion: async (_: any, { token, imagenUrl }: { token: string, imagenUrl: string }) => {
         try {
           console.log('Realizando detección de plagas con imagen:', imagenUrl);
@@ -362,6 +615,91 @@ export async function mountGraphQL(app: express.Application) {
               success: false,
               data: null,
               message: `Error en captura: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      // Mutations del módulo de sensores
+      crearLectura: async (_: any, { token, sensor_id, humedad, temperatura }: { token: string, sensor_id: number, humedad: number, temperatura: number }) => {
+        try {
+          console.log(`Creando lectura para sensor ${sensor_id}: humedad=${humedad}, temperatura=${temperatura}`);
+          
+          const response = await fetch(`${services["sensor-service"].base_url}/api/v1/lecturas/`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'accept': 'application/json'
+            },
+            body: JSON.stringify({ 
+              sensor_id, 
+              humedad, 
+              temperatura 
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Lectura creada exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error al crear lectura: ${response.status} ${response.statusText} - ${errorText}`
+            };
+          }
+        } catch (error: any) {
+          return {
+            success: false,
+            data: null,
+            message: `Error de conexión: ${error.message}`
+          };
+        }
+      },
+
+      crearSensor: async (_: any, { token, nombre, tipo, ubicacion_id }: { token: string, nombre: string, tipo: string, ubicacion_id: number }) => {
+        try {
+          console.log(`Creando sensor: ${nombre} tipo ${tipo} en ubicación ${ubicacion_id}`);
+          
+          const response = await fetch(`${services["sensor-service"].base_url}/api/v1/sensores/`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'accept': 'application/json'
+            },
+            body: JSON.stringify({ 
+              nombre, 
+              tipo, 
+              ubicacion_id 
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.text();
+            return {
+              success: true,
+              data,
+              message: "Sensor creado exitosamente"
+            };
+          } else {
+            const errorText = await response.text();
+            return {
+              success: false,
+              data: null,
+              message: `Error al crear sensor: ${response.status} ${response.statusText} - ${errorText}`
             };
           }
         } catch (error: any) {
