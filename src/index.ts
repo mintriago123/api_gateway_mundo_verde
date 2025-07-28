@@ -1,16 +1,21 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import { registerRoutes } from './routes';
+import express from "express";
+import dotenv from "dotenv";
+import { mountGraphQL } from "./graphql";
+import { registerRoutes } from "./routes";
 
-dotenv.config();
+(async () => {
+  dotenv.config();
 
-const app = express();
+  const app = express();
 
-// Middleware para parsear JSON
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
+  /* 1. GraphQL */
+  await mountGraphQL(app);
 
-registerRoutes(app);
+  /* 2. Proxys REST */
+  registerRoutes(app);
 
-const port = Number(process.env.GATEWAY_PORT) || 4000;
-app.listen(port, () => console.log(`API Gateway on :${port}`));
+  const port = process.env.GATEWAY_PORT || 4000;
+  app.listen(port, () => {
+    console.log(`API Gateway listening on port ${port}`);
+  });
+})();
