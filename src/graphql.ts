@@ -23,7 +23,7 @@ export async function mountGraphQL(app: express.Application) {
       loginClima(username: String!, password: String!): AuthResponse
       # Autenticación del módulo de plagas
       loginPlagas(email: String!, password: String!): AuthResponse
-      registerPlagas(username: String!, password: String!, email: String!): AuthResponse
+      registerPlagas(name: String!, email: String!, cedula: String!, password: String!, password_confirmation: String!): AuthResponse
       # Operaciones del módulo de plagas
       realizarDeteccion(token: String!, imagenUrl: String!): PlagaResponse
       capturarImagen(token: String!, dispositivo: String!): PlagaResponse
@@ -256,17 +256,23 @@ export async function mountGraphQL(app: express.Application) {
         }
       },
 
-      registerPlagas: async (_: any, { username, password, email }: { username: string, password: string, email: string }) => {
+      registerPlagas: async (_: any, { name, email, cedula, password, password_confirmation }: { name: string, email: string, cedula: string, password: string, password_confirmation: string }) => {
         try {
-          console.log('Registrando usuario en módulo de plagas:', username);
+          console.log('Registrando usuario en módulo de plagas:', name);
           
           const response = await fetch(`${services["plaga-detection"].base_url}/api/register`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'accept': 'application/json'
+              'accept': '*/*'
             },
-            body: JSON.stringify({ username, password, email })
+            body: JSON.stringify({ 
+              name, 
+              email, 
+              cedula, 
+              password, 
+              password_confirmation 
+            })
           });
 
           if (response.ok) {
