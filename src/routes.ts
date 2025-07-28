@@ -65,14 +65,16 @@ function identifySourceModule(req: Request): { name: string; evidence: string } 
   if (userAgent.includes('PHP') || userAgent.includes('GuzzleHttp') || userAgent.includes('curl')) {
     return { name: 'plaga-detection', evidence: 'User-Agent (PHP/Laravel)' };
   }
-  if (userAgent.includes('python') || userAgent.includes('requests') || userAgent.includes('httpx') || userAgent.includes('FastAPI')) {
-    // Distinguir entre sensor-service y ia-evaluacion por IP si es posible
+  if (userAgent.includes('python') || userAgent.includes('requests') || userAgent.includes('httpx') || userAgent.includes('FastAPI') || userAgent.includes('Flask')) {
+    // Distinguir entre sensor-service, ia-evaluacion y vision-detection por puerto si es posible
     if (clientIP.includes('6060') || referer.includes('6060') || remotePort === 6060) {
       return { name: 'sensor-service', evidence: 'User-Agent (Python/FastAPI) + Puerto 6060' };
     } else if (clientIP.includes('3200') || referer.includes('3200') || remotePort === 3200) {
       return { name: 'ia-evaluacion', evidence: 'User-Agent (Python/FastAPI) + Puerto 3200' };
+    } else if (clientIP.includes('5000') || referer.includes('5000') || remotePort === 5000) {
+      return { name: 'vision-detection', evidence: 'User-Agent (Python/Flask) + Puerto 5000' };
     }
-    return { name: 'python-service', evidence: 'User-Agent (Python/FastAPI)' };
+    return { name: 'python-service', evidence: 'User-Agent (Python/FastAPI/Flask)' };
   }
   if (userAgent.includes('.NET') || userAgent.includes('HttpClient')) {
     return { name: 'export-module', evidence: 'User-Agent (.NET)' };
@@ -109,6 +111,7 @@ function identifySourceModule(req: Request): { name: string; evidence: string } 
   if (referer.includes(':6060')) return { name: 'sensor-service', evidence: 'Referer puerto 6060' };
   if (referer.includes(':5197')) return { name: 'export-module', evidence: 'Referer puerto 5197' };
   if (referer.includes(':3200')) return { name: 'ia-evaluacion', evidence: 'Referer puerto 3200' };
+  if (referer.includes(':5000')) return { name: 'vision-detection', evidence: 'Referer puerto 5000' };
 
   // 8. Cliente web (navegador)
   if (userAgent.includes('Mozilla') || userAgent.includes('Chrome') || userAgent.includes('Safari') || userAgent.includes('Firefox')) {
@@ -133,7 +136,8 @@ function getModuleByPort(port: number): string | null {
     8000: 'plaga-detection', 
     6060: 'sensor-service',
     5197: 'export-module',
-    3200: 'ia-evaluacion'
+    3200: 'ia-evaluacion',
+    5000: 'vision-detection'
   };
   
   return portToModuleMap[port] || null;
@@ -212,7 +216,8 @@ export function registerRoutes(app: Express): void {
                    name.includes('plaga') ? '/plaga' :
                    name.includes('sensor') ? '/sensor' :
                    name.includes('export') ? '/export' :
-                   name.includes('ia') ? '/ia' : 'unknown'
+                   name.includes('ia') ? '/ia' :
+                   name.includes('vision') ? '/vision' : 'unknown'
     }));
 
     res.json({
@@ -265,7 +270,8 @@ export function registerRoutes(app: Express): void {
             "8000": "plaga-detection (Laravel)",
             "6060": "sensor-service (FastAPI)",
             "5197": "export-module (.NET)",
-            "3200": "ia-evaluacion (FastAPI)"
+            "3200": "ia-evaluacion (FastAPI)",
+            "5000": "vision-detection (Flask)"
           },
           ejemplo: "Si un servicio en puerto 8080 hace una petición, se detecta automáticamente como 'cultivo-manager'"
         },
@@ -275,7 +281,7 @@ export function registerRoutes(app: Express): void {
             "java|Apache-HttpClient|okhttp": "cultivo-manager (Spring Boot)",
             "node|axios|fetch": "clima-service (Node.js)",
             "PHP|GuzzleHttp|curl": "plaga-detection (Laravel)",
-            "python|requests|httpx|FastAPI": "sensor-service o ia-evaluacion (Python)",
+            "python|requests|httpx|FastAPI|Flask": "sensor-service, ia-evaluacion o vision-detection (Python)",
             ".NET|HttpClient": "export-module (.NET)",
             "Mozilla|Chrome|Safari|Firefox": "web-browser",
             "Postman": "postman",
@@ -532,13 +538,45 @@ export function registerRoutes(app: Express): void {
       pathRewrite: { "^/ia": "" }, // /ia/chat → /chat, /ia/evaluar-cultivo → /evaluar-cultivo
       logLevel: "debug",
       onProxyReq(proxyReq: ClientRequest, r: Request) {
-        console.log(`🔄 [IA-EVALUACION:${services["ia-evaluacion"].port}] Enviando: ${r.method} ${r.originalUrl} → ${services["ia-evaluacion"].base_url}${r.url}`);
+        const sourceInfo = (r as any).sourceModule;
+        const sourceText = sourceInfo ? `${sourceInfo.name} (${sourceInfo.evidence})` : 'desconocido';
+        console.log(`🔄 [${sourceText} → IA-EVALUACION:${services["ia-evaluacion"].port}] Enviando: ${r.method} ${r.originalUrl} → ${services["ia-evaluacion"].base_url}${r.url}`);
       },
       onProxyRes(proxyRes: IncomingMessage, req: Request) {
-        console.log(`✅ [IA-EVALUACION:${services["ia-evaluacion"].port}] Respuesta: ${proxyRes.statusCode} para ${req.method} ${req.originalUrl}`);
+        const sourceInfo = (req as any).sourceModule;
+        const sourceText = sourceInfo ? sourceInfo.name : 'desconocido';
+        console.log(`✅ [${sourceText} → IA-EVALUACION:${services["ia-evaluacion"].port}] Respuesta: ${proxyRes.statusCode} para ${req.method} ${req.originalUrl}`);
       },
       onError(err: Error, _req: IncomingMessage, res: ServerResponse) {
         console.error(`❌ [IA-EVALUACION:${services["ia-evaluacion"].port}] Error:`, err.message);
+        res.writeHead(502).end("Gateway error");
+      },
+    } as Options)
+  );
+
+  /* ════════════════════
+     VISION-DETECTION
+     (Flask) – detección de imágenes con YOLO
+  ══════════════════════ */
+  app.use(
+    "/vision",
+    // Sin autenticación JWT por ahora, pero se puede agregar si es necesario
+    createProxyMiddleware({
+      target: services["vision-detection"].base_url, // http://localhost:5000
+      changeOrigin: true,
+      pathRewrite: { "^/vision": "" }, // /vision/detect → /detect, /vision/ → /
+      onProxyReq(proxyReq: ClientRequest, r: Request) {
+        const sourceInfo = (r as any).sourceModule;
+        const sourceText = sourceInfo ? `${sourceInfo.name} (${sourceInfo.evidence})` : 'desconocido';
+        console.log(`🔄 [${sourceText} → VISION-DETECTION:${services["vision-detection"].port}] Enviando: ${r.method} ${r.originalUrl} → ${services["vision-detection"].base_url}${r.url}`);
+      },
+      onProxyRes(proxyRes: IncomingMessage, req: Request) {
+        const sourceInfo = (req as any).sourceModule;
+        const sourceText = sourceInfo ? sourceInfo.name : 'desconocido';
+        console.log(`✅ [${sourceText} → VISION-DETECTION:${services["vision-detection"].port}] Respuesta: ${proxyRes.statusCode} para ${req.method} ${req.originalUrl}`);
+      },
+      onError(err: Error, _req: IncomingMessage, res: ServerResponse) {
+        console.error(`❌ [VISION-DETECTION:${services["vision-detection"].port}] Error:`, err.message);
         res.writeHead(502).end("Gateway error");
       },
     } as Options)

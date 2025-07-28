@@ -68,6 +68,15 @@ export const services = {
       '/evaluar-cultivo',
     ],
   },
+  'vision-detection': {
+    base_url: 'http://localhost:5000',
+    port: 5000,
+    description: 'Flask - Detección de Imágenes con YOLO',
+    endpoints: [
+      '/',
+      '/detect',
+    ],
+  },
 } as const;
 
 /**
@@ -87,7 +96,8 @@ export function getServiceByPath(path: string): { name: string; service: typeof 
     'plaga': 'plaga-detection',
     'sensor': 'sensor-service',
     'export': 'export-module',
-    'ia': 'ia-evaluacion'
+    'ia': 'ia-evaluacion',
+    'vision': 'vision-detection'
   };
 
   const serviceName = serviceMap[serviceRoute];
